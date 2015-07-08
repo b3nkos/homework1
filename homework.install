@@ -1,0 +1,62 @@
+<?php
+
+/**
+ * Implements hook_install().
+ */
+function homework_install() {
+  
+  //propiedad que permite crear bundle
+  $new_bundle = function($name, $label, $entity_type) {
+    $bundle = new Bundle();
+    $bundle->name = $name;
+    $bundle->label = $label;
+    $bundle->entity_type = $entity_type;
+    $bundle->save();
+    return $bundle;
+  };
+
+  //propiedad que permite crear campos basicos en un bundle
+  $add_field = function($bundle, $type, $name, $label, $settings = array()) {
+    $options = array(
+      'field' => array('field_name' => $name, 'settings' => $settings),
+      'instance' => array('label' => $label, 'required' => TRUE),
+    );
+    $bundle->addField($type, $options);
+  };
+
+
+  //tipo de entidad (entidad principal)
+  $entity = new EntityType();
+  $entity->name = "eck_homework";
+  $entity->label = "Homework";
+  $entity->addProperty('nombre', 'Nombre', 'text', 'title');
+  $entity->save();
+
+  //bundle de productos
+  $bundle = $new_bundle('eck_bundle_producto', 'Producto', $entity->name);
+  $add_field($bundle,'text', 'description', 'Desccripcion');
+  $add_field($bundle,'text', 'sku', 'SKU');
+  $add_field($bundle,'number_float', 'costo', 'Costo');
+  $add_field($bundle,'number_float', 'precio', 'Precio de venta');
+  $add_field($bundle,'number_float', 'precio_putos', 'Precio de punto');
+
+  //bundle del programa
+  $bundle = $new_bundle('eck_bundle_programa', 'Programa', $entity->name);
+  
+  //bundle del flete
+  $bundle = $new_bundle('eck_bundle_fletes', 'Flete', $entity->name);
+  $add_field($bundle,'number_float', 'valor', 'Valor');
+
+  //bundle de la categoria
+  $bundle = $new_bundle('eck_bundle_categoria', 'Categoria', $entity->name);
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function homework_uninstall() {
+  //elimina los datos de la entidad
+  if ($entity = EntityType::loadByName('eck_homework')) {
+    $entity->delete();
+  }
+}

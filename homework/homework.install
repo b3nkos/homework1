@@ -5,50 +5,40 @@
  */
 function homework_install() {
   
-  //propiedad que permite crear bundle
-  $new_bundle = function($name, $label, $entity_type) {
-    $bundle = new Bundle();
-    $bundle->name = $name;
-    $bundle->label = $label;
-    $bundle->entity_type = $entity_type;
-    $bundle->save();
-    return $bundle;
-  };
-
-  //propiedad que permite crear campos basicos en un bundle
-  $add_field = function($bundle, $type, $name, $label, $settings = array()) {
-    $options = array(
-      'field' => array('field_name' => $name, 'settings' => $settings),
-      'instance' => array('label' => $label, 'required' => TRUE),
-    );
-    $bundle->addField($type, $options);
-  };
-
-
   //tipo de entidad (entidad principal)
   $entity = new EntityType();
-  $entity->name = "eck_homework";
+  $entity->name = "homework";
   $entity->label = "Homework";
-  $entity->addProperty('nombre', 'Nombre', 'text', 'title');
+  $entity->addProperty('name', 'Nombre', 'text', 'title');
   $entity->save();
 
-  //bundle de productos
-  $bundle = $new_bundle('eck_bundle_producto', 'Producto', $entity->name);
-  $add_field($bundle,'text', 'description', 'Desccripcion');
-  $add_field($bundle,'text', 'sku', 'SKU');
-  $add_field($bundle,'number_float', 'costo', 'Costo');
-  $add_field($bundle,'number_float', 'precio', 'Precio de venta');
-  $add_field($bundle,'number_float', 'precio_putos', 'Precio de punto');
-
   //bundle del programa
-  $bundle = $new_bundle('eck_bundle_programa', 'Programa', $entity->name);
-  
+  $bundle_programa = _new_bundle('programa', 'Programa', $entity->name);
+  _add_field($bundle_programa,'number_float', 'valor_puntos', 'Valor de puntos');
+
   //bundle del flete
-  $bundle = $new_bundle('eck_bundle_fletes', 'Flete', $entity->name);
-  $add_field($bundle,'number_float', 'valor', 'Valor');
+  $bundle_flete = _new_bundle('flete', 'Flete', $entity->name);
+  _add_field($bundle_flete,'text', 'codigo', 'Codigo');
+  _add_field($bundle_flete,'number_float', 'costo_envio', 'Costo del envio');
+
 
   //bundle de la categoria
-  $bundle = $new_bundle('eck_bundle_categoria', 'Categoria', $entity->name);
+  $bundle_categoria = _new_bundle('categoria', 'Categoria', $entity->name);
+  _add_field($bundle_categoria,'text', 'description', 'Descripcion');
+  _add_field_ref($bundle_categoria,$bundle_categoria, 
+    'categoria_parent', 'Categoria padre', FALSE);
+
+  //bundle de productos
+  $bundle = _new_bundle('producto', 'Producto', $entity->name);
+  _add_field($bundle,'text', 'sku', 'SKU');
+  _add_field($bundle,'number_float', 'costo', 'Costo');
+  _add_field($bundle,'number_float', 'precio_venta', 'Precio de venta');
+  _add_field($bundle,'number_float', 'precio_putos', 'Precio de punto');
+  _add_field($bundle,'number_float', 'precio_total', 'Precio total');
+  //campos relacionados
+  _add_field_ref($bundle,$bundle_programa, 'programa', 'Programa');
+  _add_field_ref($bundle,$bundle_flete, 'flete', 'Flete');
+  _add_field_ref($bundle,$bundle_categoria, 'categoria', 'Categoria');
 }
 
 /**
@@ -56,7 +46,55 @@ function homework_install() {
  */
 function homework_uninstall() {
   //elimina los datos de la entidad
-  if ($entity = EntityType::loadByName('eck_homework')) {
-    $entity->delete();
+  $entity = EntityType::loadByName('homework');
+  if ($entity) {
+      $entity->delete();
   }
 }
+
+//funcion que permite crear bundle
+ function _new_bundle($name, $label, $entity_type) {
+    $bundle = new Bundle();
+    $bundle->name = $name;
+    $bundle->label = $label;
+    $bundle->entity_type = $entity_type;
+    $bundle->save();
+    return $bundle;
+  }
+
+  //funcion que permite crear campos basicos en un bundle
+ function _add_field($bundle, $type, $name, $label, $required = TRUE,$settings = array()) {
+    $options = array(
+      'field' => array('field_name' => $name, 'settings' => $settings),
+      'instance' => array('label' => $label, 'required' => $required),
+    );
+    $bundle->addField($type, $options);
+  }
+
+  //funcion que agrega un campo relacional
+  function _add_field_ref($bundle, $bundle_ref, $name, $label, $required = TRUE) {
+    $bundle->addField('entityreference', array(
+      'field' => array(
+        'field_name' => $name,
+        'settings' => array(
+          'target_type' => $bundle_ref->entity_type,
+          'bundle' => $bundle_ref->name,
+          'handler_settings' => array(
+            'target_bundles' => array($bundle_ref->name => $bundle_ref->name),
+          ),
+        ),
+      ),
+      'instance' => array(
+        'field_name' => $name,
+        'label' => $label,
+        'required' => $required,
+        'widget' => array('type' => 'options_select'),
+          'settings' => array(
+          'target_type' => $bundle_ref->entity_type,
+          'handler_settings' => array('target_bundles' => 
+            array($bundle_ref->name => $bundle_ref->name)),
+          ),
+      ),
+    ));
+  }
+

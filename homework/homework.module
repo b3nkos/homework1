@@ -1,1 +1,76 @@
 <?php
+
+
+/**
+ * Implements hook_field_attach_form().
+ */
+function homework_field_attach_form($entity_type, $entity, &$form, &$form_state, $langcode) {
+ if($entity_type == 'homework'){
+ 	$form ['name']['#weight'] = -10;
+ 	if($entity->type == 'producto'){
+  		$form ['precio_putos']['#access'] = FALSE;
+  		$form ['precio_total']['#access'] = FALSE;
+    }
+  }
+}
+
+/**
+ * Implements hook_field_attach_validate().
+ */
+function homework_field_attach_validate($entity_type, $entity, &$errors) {
+  if ($entity_type == 'homework') {
+  	if($entity->type == 'producto'){
+  		 $wrapper = entity_metadata_wrapper($entity_type , $entity);
+  		 $ganancia = 0;
+  		 if($wrapper->precio_venta->value()>0){
+  		   $ganancia = ($wrapper->precio_venta->value()-$wrapper->costo->value()) / $wrapper->precio_venta->value();
+  		   $ganancia = $ganancia * 100;
+  		 }
+
+  		 if($ganancia < 15) {
+  		 	$info = $wrapper->precio_venta->info();
+			$errors['precio_venta'][$info['langcode']][0][] = array(
+            	'error' => 'field_example_invalid',
+            	'message' => t('La ganacia debe ser mayor a 15%. ('.$ganancia.')'),
+            );
+            return;
+  		 }
+
+  		 $query = new EntityFieldQuery();
+  		 $query->entityCondition('entity_type', 'homework')
+  				->entityCondition('bundle', 'producto')
+  				->entityCondition('entity_id', $entity->id, '<>')
+  				->fieldCondition('sku', 'value',$wrapper->sku->value(), '=');
+
+  		 $result = $query->execute();
+
+  		 if($result) {
+  			$info = $wrapper->sku->info();
+  			$errors['sku'][$info['langcode']][0][] = array(
+            	'error' => 'field_example_invalid',
+            	'message' => t('Existe un SKU en otro producto.'),
+            );
+  		} 
+  	}
+  }
+}
+
+/**
+ * Implements hook_field_attach_submit().
+ */
+function homework_field_attach_submit($entity_type, $entity, $form, &$form_state) {
+  if($entity_type == 'homework'){
+  	 if($entity->type == 'producto'){
+       $wrapper = entity_metadata_wrapper($entity_type , $entity ); 
+       $presion_total = $wrapper->precio_venta->value() + 
+       				$wrapper->flete->costo_envio->value();			
+       $wrapper->precio_total->set($presion_total);
+
+       $precio_putos = ceil($presion_total/$wrapper->programa->valor_puntos->value());
+       $wrapper->precio_putos->set($precio_putos);
+       
+       $wrapper->save();
+     }
+  }
+ 
+}
